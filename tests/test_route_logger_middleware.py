@@ -96,3 +96,33 @@ class TestRouteLogger:
         logger.exception.assert_called_once_with(
             f"Request failed with exception /somewhere, method=GET"
         )
+
+    def test_when_logging_request_with_log_start(self, mocker):
+        mocker.patch(
+            "fastapi_route_logger_middleware.time.perf_counter", side_effect=[1.2, 1.4]
+        )
+        request = MagicMock(
+            spec=Request,
+            url=MagicMock(
+                path="/somewhere",
+            ),
+            method="GET",
+        )
+        app = MagicMock(spec=FastAPI)
+        logger = MagicMock(spec=logging.Logger)
+        route_logger = RouteLoggerMiddleware(app, logger=logger, log_start=True)
+        response = MagicMock(spec=Response, status_code=200)
+        call_next = AsyncMock(return_value=response)
+
+        result = asyncio.run(route_logger.dispatch(request, call_next))
+
+        assert result == response
+        call_next.assert_called_once_with(request)
+        logger.info.assert_has_calls(
+            [
+                mocker.call("Request started, GET /somewhere"),
+                mocker.call(
+                    "Request successful, GET /somewhere, status code=200, took=0.2000s"
+                ),
+            ]
+        )

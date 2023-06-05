@@ -16,6 +16,7 @@ class RouteLoggerMiddleware(BaseHTTPMiddleware):
         logger: typing.Optional[logging.Logger] = None,
         skip_routes: typing.List[str] = None,
         skip_regexes: typing.List[str] = None,
+        log_start: bool = False,
     ):
         self._logger = logger if logger else logging.getLogger(__name__)
         self._skip_routes = skip_routes if skip_routes else []
@@ -24,6 +25,7 @@ class RouteLoggerMiddleware(BaseHTTPMiddleware):
             if skip_regexes
             else []
         )
+        self._log_start = log_start
         super().__init__(app)
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
@@ -41,6 +43,9 @@ class RouteLoggerMiddleware(BaseHTTPMiddleware):
     async def _execute_request_with_logging(
         self, request: Request, call_next: Callable
     ) -> Response:
+        if self._log_start:
+            self._logger.info(f"Request started, {request.method} {request.url.path}")
+
         start_time = time.perf_counter()
 
         response = await self._execute_request(call_next, request)
